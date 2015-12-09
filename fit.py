@@ -19,9 +19,9 @@ def svc():
     labels = [recipe['cuisine'] for recipe in recipeData]
     features = [buildFeaturesArray(ingredients, recipe) for recipe in recipeData]
     
-    print "Loaded " + len(recipeData) + " with " + len(ingredients)
+    print "Loaded " + str(len(recipeData)) + " with " + str(len(ingredients)) + " ingredients"    
         
-    pca = PCA( int(math.ceil(len(ingredients) * .25)) )
+    pca = PCA(100)
     pca.fit(features)
         
     print "PCA: " + pca
