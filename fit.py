@@ -8,40 +8,88 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_selection import VarianceThreshold
 from sklearn import svm
 from sklearn.decomposition import PCA
+from sklearn.feature_extraction import DictVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
 
-def svc():
+def getTestData():
     data = open("formatted.json").readlines()
-    data = '\n'.join(data)    
-    recipeData = json.loads(data)        
+    data = json.loads('\n'.join(data))
+    num = int(math.floor(len(data) * .75))        
+    return data[num:len(data)]
     
-    recipeData = recipeData[0:500]
-    ingredients = sorted(set([e for sublist in map(lambda e: e['ingredients'], recipeData) for e in sublist]))
-    labels = [recipe['cuisine'] for recipe in recipeData]
-    features = [buildFeaturesArray(ingredients, recipe) for recipe in recipeData]
-    
-    print "Loaded " + str(len(recipeData)) + " with " + str(len(ingredients)) + " ingredients"    
+def getRecipeData():
+    data = open("formatted.json").readlines()
+    data = json.loads('\n'.join(data))
+    num = int(math.floor(len(data) * .75))        
+    return data[0:num]
         
-    pca = PCA(100)
-    pca.fit(features)
-        
-    print "PCA: " , pca
-        
-    clf = svm.SVC()
-    clf.fit(pca.fit_transform(features), labels)
-    
-    print "CLF: " , clf
-    
-    testData = '\n'.join(open("test_formatted.json").readlines())
-    testRecipes = json.loads(testData)    
-    testFeatures = [buildFeaturesArray(ingredients, recipe) for recipe in testRecipes]
-    
-    predictions = clf.predict( pca.fit_transform(testFeatures) )
+def outputPercentCorrect(predictions):
+    testRecipes = getTestData()
+    numCorrect = 0
     
     for i, w in enumerate(testRecipes):
-        testRecipes[i]['cuisine'] = predictions[i]
+        if testRecipes[i]['cuisine'] == predictions[i]:
+            numCorrect += 1
     
-    pd.DataFrame(testRecipes, columns=['id', 'cuisine']).to_csv("result.csv", index=False, quoting=3)
+    percentRight = float(numCorrect) / float(len(testRecipes))
+    print "Result: ", percentRight
             
+def randomForestDictVector():
+    recipeData = getRecipeData()    
+    # recipeData = recipeData[0:10000]
+    
+    labels = [recipe['cuisine'] for recipe in recipeData]
+    ingredientsFixtures = [sorted(set(e['ingredients'])) for e in recipeData]
+    for i, w in enumerate(ingredientsFixtures):
+        ingredientsFixtures[i] = dict(zip(w, [1] * len(w)))        
+                
+    pipeline = Pipeline([
+        ('dict', DictVectorizer()),
+        # ('variance', VarianceThreshold()),        
+        # ('tfidf', TfidfTransformer()),
+        ('bayes', RandomForestClassifier()),
+    ])    
+    
+    pipeline.fit(ingredientsFixtures, labels)
+    print pipeline
+    
+    testRecipes = getTestData()
+    testIngredientsFixtures = [sorted(set(e['ingredients'])) for e in testRecipes]
+    for i, w in enumerate(testIngredientsFixtures):
+        testIngredientsFixtures[i] = dict(zip(w, [1] * len(w)))
+        
+    predictions = pipeline.predict(testIngredientsFixtures)
+    outputPercentCorrect(predictions)
+            
+def svcDictVector():
+    recipeData = getRecipeData()    
+    # recipeData = recipeData[0:10000]
+    
+    labels = [recipe['cuisine'] for recipe in recipeData]
+    ingredientsFixtures = [sorted(set(e['ingredients'])) for e in recipeData]
+    for i, w in enumerate(ingredientsFixtures):
+        ingredientsFixtures[i] = dict(zip(w, [1] * len(w)))        
+                
+    pipeline = Pipeline([
+        ('dict', DictVectorizer()),
+        ('variance', VarianceThreshold()),        
+        # ('tfidf', TfidfTransformer()),
+        ('bayes', svm.LinearSVC()),
+    ])    
+    
+    pipeline.fit(ingredientsFixtures, labels)
+    print pipeline
+    
+    testRecipes = getTestData()    
+    testIngredientsFixtures = [sorted(set(e['ingredients'])) for e in testRecipes]
+    for i, w in enumerate(testIngredientsFixtures):
+        testIngredientsFixtures[i] = dict(zip(w, [1] * len(w)))
+        
+    predictions = pipeline.predict(testIngredientsFixtures)    
+    outputPercentCorrect(predictions)     
+    
 
 def buildFeaturesArray(ingredients, recipe):
     res = np.zeros( len(ingredients) )
@@ -51,10 +99,8 @@ def buildFeaturesArray(ingredients, recipe):
     
     return np.array(res)
     
-def bernouli():
-    data = open("formatted.json").readlines()
-    data = '\n'.join(data)
-    recipeData = json.loads(data)
+def bayes():
+    recipeData = getRecipeData()
     sel = VarianceThreshold()
         
     ingredients = sorted(set([e for sublist in map(lambda e: e['ingredients'], recipeData) for e in sublist]))
@@ -66,17 +112,17 @@ def bernouli():
     clf = MultinomialNB()
     clf.fit(features, labels)
     
-    testData = '\n'.join(open("test_formatted.json").readlines())
-    testRecipes = json.loads(testData)
     # testRecipes = testRecipes[0:1000]
-    
+    testRecipes = getTestData()
     testFeatures = [buildFeaturesArray(ingredients, recipe) for recipe in testRecipes]
     predictions = clf.predict(testFeatures)
     
-    for i, w in enumerate(testRecipes):
-        testRecipes[i]['cuisine'] = predictions[i]
+    outputPercentCorrect(predictions)
     
-    pd.DataFrame(testRecipes, columns=['id', 'cuisine']).to_csv("result.csv", index=False, quoting=3)
+#     for i, w in enumerate(testRecipes):
+#         testRecipes[i]['cuisine'] = predictions[i]
+#     
+#     pd.DataFrame(testRecipes, columns=['id', 'cuisine']).to_csv("result.csv", index=False, quoting=3)
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
