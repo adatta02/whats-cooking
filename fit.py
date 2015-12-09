@@ -14,7 +14,7 @@ def svc():
     data = '\n'.join(data)    
     recipeData = json.loads(data)        
     
-    recipeData = recipeData[0:5000]
+    recipeData = recipeData[0:500]
     ingredients = sorted(set([e for sublist in map(lambda e: e['ingredients'], recipeData) for e in sublist]))
     labels = [recipe['cuisine'] for recipe in recipeData]
     features = [buildFeaturesArray(ingredients, recipe) for recipe in recipeData]
@@ -24,12 +24,12 @@ def svc():
     pca = PCA(100)
     pca.fit(features)
         
-    print "PCA: " + pca
+    print "PCA: " , pca
         
     clf = svm.SVC()
     clf.fit(pca.fit_transform(features), labels)
     
-    print "CLF: " + clf
+    print "CLF: " , clf
     
     testData = '\n'.join(open("test_formatted.json").readlines())
     testRecipes = json.loads(testData)    
